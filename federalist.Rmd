@@ -1,0 +1,208 @@
+---
+title: "Federalist Paper"
+author: "Jeffrey Arnold"
+date: "4/3/2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Naive Bayes
+
+Bayes' theorem can almost immediately be supervised classification algorithms.
+The Naive Bayes classifiers are a family of classifiers which apply Bayes' Rule to classify a discrete response $y$ using observed features $(x_1, \dots, x_K)$, with a simplifying assumption of independence.
+
+Suppose that $y$ is a discrete class variable taking values $j \in 1, \dots, J$.
+Suppose that $(x_1, \dots, x_k)$ is a vector of $K$ observed features (predictors) for an observation.
+We are interested in the probabilities of each class after having observed its features,
+which we can reformulate in Bayes' rule.
+$$
+p(y | x_1, \dots, x_k) = \frac{p(x_1, \dots, x_k | y) p(y)}{\sum_{j = 1}^{J} p(x_1, \dots, x_k | y = j) p(y = j)}
+$$
+
+The so called "naive" adjective comes from an additional asumption of independence,
+$$
+p(x_k | y, x_1, \dots, x_K) = p(x_k | y)
+$$
+for all $k \in 1, \dots, K$.
+The assumption of independence is a strong one, but will make this problem much more tractable.
+It is much easier to model and estimate the univariate $p(x_k | y)$ probabilities, but much
+harder to model and estimate a multivariate distribution, $p(x_1, \dots, x_K | y)$.
+
+Using independence, we can rewrite the posterior distribution as,
+$$
+p(y | x_1, \dots, x_k) = \frac{p(y) p(x_1 | y) \cdots p(x_K | y)}{\sum_{j = 1}^{J} p(y) p(x_1 | y) \cdots p(x_K | y)} = \frac{p(y) \prod_{k = 1}^K p(x_k | y)}{\sum_{j = 1}^{J} p(y) \prod_{k = 1}^K p(x_k | y)} .
+$$
+
+Moreover, often interested in the most likely class, where we can ignore the marginal likelihood,
+$$
+\begin{aligned}[t]
+\arg\max_{j \in 1, \dots, J} p(y = j | x_1, \dots, x_k) &= \frac{p(y = j) \prod_{k = 1}^K p(x_k | y = j)}{\sum_{j = 1}^{J} p(y = j) \prod_{k = 1}^K p(x_k | y = j)} \\
+ &\propto p(y = j) \prod_{k = 1}^K p(x_k | y = j) .
+\end{aligned}
+$$
+
+In applying naive Bayes, there are two choices that need to be made:
+
+1.  probability distributions for likelihood of each feature, $p(x_i | y)$, and
+2.  prior distribution $p(y)$ .
+
+After choosing the distributional forms of $p(y)$, $p(x_1 | y)$, ..., $p(x_K | y)$ appropriate for your model,
+the workflow is,
+
+1. Train your model on data ($x_1, \dots, x_k$, $y$) to estimate the distributions $\hat{p}(y)$, $\hat{p}(x_1 | y)$, ..., $\hat{p}(x_K | y)$.
+2. For new observations, calculate $p(y | x)$ using the learned parameters of the distribution.
+3. Evaluate the model using predictive criteria
+
+In our cases we will be using *maximum a posteriori* estimators to find the parameters of $\hat{p}(y)$, $\hat{p}(x_1 | y)$, ..., $\hat{p}(x_K | y)$.
+What makes this convenient is that the MAP estimator can be estimated separately for each term.
+
+## Federalist Papers
+
+
+*The Federalist Papers* comprise 85 articles published under the pseudonym “Publius” in New York newspapers between 1787 and 1788.
+It was written by Alexander Hamilton, James Madison, and John Jay to persuade the public to ratify the Constitution. John Jay wrote five papers, and Alexander Hamilton wrote 51, and James Madison 14.
+The authorship of the remaining 15 papers is (was) disputed between Hamilton and Madison, though lar
+
+In an early example of empirical Bayesian statistics and computational NLP, F. Mosteller and D. L. Wallace used naive Bayes to classify the disputed articles and conclude that there is strong evidence to suggest that Madison wrote all the disputed articles.
+
+This exaample will use the following libraries.
+```{r message=FALSE}
+library("corpus")
+library("federalist")
+library("corpus")
+```
+
+Load the text of Federalist papers from the **corpus package**.
+```{r federalist}
+data("federalist", package = "corpus")
+
+federalist <- federalist %>%
+  # add a document number
+  mutate(number = row_number())
+
+```
+
+We will often only be referring to Hamilton and Madison and ignore John Jay, so 
+assign their names to a variable that we will use several times.
+```{r}
+AUTHORS <- c("Hamilton", "Madison")
+```
+
+Create a data frame of document-term counts,
+```{r federalist_wc}
+federalist_wc <- term_counts(federalist) %>%
+  mutate(text = as.integer(text),
+         term = as.character(term)) %>%
+  left_join(select(federalist, text = number, author),
+            by = "text")
+```
+
+See Moesteller and Wallace. But for authorship attribution keeping only non-content words
+is preferrable (DISCUSS):
+```{r}
+federalist_wc <- federalist_wc %>%
+  filter(term %in% corpus::stopwords_en)
+```
+
+Having seen the data, let's turn to our analysis
+
+Let $c$ be the category (author) of documents, and $d$ be a document (and features of it).
+We want to calculate the category of the document, having observed data about the document.
+$$
+P(c | d) \propto P(c) \prod p(d | c)
+$$
+
+We need to f
+$$
+p(d | c) = \prod_{i \in n_d} p(i | c)
+$$
+
+The two choices are how to model $p(d | c)$ and $p(c)$.
+
+**FILL IN**
+
+Calculate the values of $p(w | c)$  for each author:
+```{r}
+p_words_author <- federalist_wc %>%
+  # keep only Hamilton and Madison
+  filter(author %in% AUTHORS) %>%
+  # count terms used by each author
+  group_by(author, term) %>%
+  summarise(count = sum(count)) %>%
+  ungroup() %>%
+  # ensure all (author, term) combinations appear
+  # fill in missing combinations with count = 0
+  complete(author, term, fill = list(count = 0)) %>%
+  # calculate p(w | c) for each author
+  group_by(author) %>%
+  mutate(p = (count + 1) / sum(count + 1))
+
+```
+
+For the priors on categories we can use the prior generated from the proportion of documents in each class,
+$$
+\hat{p}(c) = \frac{D_c}{D} ,
+$$
+where $D_c$ is the number of documents in class $c$, and $D$ is the total number of documents.
+
+```{r}
+p_author <- federalist %>%
+  filter(author %in% AUTHORS) %>%
+  count(author) %>%
+  mutate(p = n / sum(n),
+         # log-probabilites are easier to work with
+         logp = log(p))
+prior
+```
+
+Use Bayes' rule to find the posterio probbility of each document:
+```{r}
+post <- p_words_author %>%
+  select(author, term, p) %>%
+  # start with p_word_cat so that all (term, author)
+  # combinations are represented
+  left_join(select(federalist_wc, text, term, count),
+            by = c("term")) %>%
+  mutate(count = if_else(is.na(count), 0, count)) %>%
+  # calculate density of multinomial distribution for each probability distribution
+  group_by(author, text) %>%
+  arrange(author, text, term) %>%  
+  summarise(logp_words_author = dmultinom(count, prob = p, log = TRUE))
+```
+Add a column with priors,
+```{r}
+post <- left_join(post,
+          select(p_author, author, logp_author = logp), by = "author") %>%
+  # log(p(c)) + log(p(w | c))
+  mutate(p_author_words = exp(logp_words_author + logp_author)) %>%
+  # normalize to probabilities
+  group_by(text) %>%
+  mutate(p_author_words = p_author_words / sum(p_author_words)) 
+```
+
+Find the most probable document:
+```{r}
+predictions <- post %>%
+  select(author, text, p_author_words) %>%
+  # For each document, choose the author with the highest probability:
+  group_by(text) %>%
+  arrange(text, desc(p_author_words)) %>%
+  slice(1) %>%
+  rename(pred = author) %>%
+  # add labels
+  left_join(select(federalist, text = number, author),
+            by = "text") %>%
+  # using p(author = Hamilton) will be easier to interpret later
+  mutate(p = p_author_words,
+         p = if_else(pred == "Madison", 1 - p, p),
+         author = if_else(is.na(author), "Unknown", author)) %>%
+  filter(author != "Jay")
+  
+```
+
+```{r}
+ggplot(predictions, aes(x = text, colour = author, y = p)) +
+  geom_point()
+```
+
