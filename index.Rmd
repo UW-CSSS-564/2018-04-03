@@ -1,5 +1,5 @@
 ---
-title: "Predict your age from you name, and other such questions"
+title: "Predict your age from you name"
 author: "Jeffrey B. Arnold"
 date: 2018-04-03
 output: pdf_document
@@ -271,6 +271,8 @@ filter(baby_names, sex == "M") %>%
 ### References
 
 - The [How to Tell Someone’s Age When All You Know Is Her Name](https://fivethirtyeight.com/features/how-to-tell-someones-age-when-all-you-know-is-her-name/) is 
-- [gender](https://github.com/ropensci/gender): R package for predicting gender from a name.
-- [wru](https://github.com/kosukeimai/wru): R package to predict race/ethnicity from surnames and geolocation information, based on [this paper](http://imai.princeton.edu/research/race.html)
+Problems of this type are common in data. See these related packages.
 
+- [gender](https://github.com/ropensci/gender): An R package for predicting gender from a name using historical name data.
+- [genderizeR](https://github.com/kalimu/genderizeR) Another package for predicting gender from first names.
+- [wru](https://github.com/kosukeimai/wru): R package to predict race/ethnicity from surnames and geolocation information, based on [this paper](http://imai.princeton.edu/research/race.html)
