@@ -2,7 +2,7 @@
 title: "Predict your age from you name, and other such questions"
 author: "Jeffrey B. Arnold"
 date: 2018-04-03
-output: html_document
+output: pdf_document
 editor_options: 
   chunk_output_type: console
 ---
@@ -10,6 +10,15 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+# Prerequisites
+
+This analysis uses these packages.
+```{r message=FALSE}
+library("tidyverse")
+library("babynames")
+```
+
 
 ## Statement of the problem
 
@@ -60,10 +69,10 @@ age_distr <- life_table %>%
   select(-year)
 ```
 ```{r}
-glimpse(lifetable_full)
+glimpse(life_table)
 ```
 However, the `p_alive` column of `age_distr` only provides the probability of being alive in `r YEAR` conditional on having been born in a given year (and sex),
-```{r fig.cap="Probability of "}
+```{r fig.cap="Probability"}
 ggplot(age_distr,
        aes(x = birthyear, y = p_alive, color = sex)) +
   geom_point() +
@@ -134,7 +143,9 @@ babynames_other <- baby_names %>%
   group_by(sex, year) %>%
   summarise(p_named = sum(prop), n_named = sum(n)) %>%
   mutate(prop = 1 - p_named, n = n_named / p_named * prop,
-         name = "OTHER")
+         name = "OTHER") %>%
+  select(sex, year, prop, name, n, prop) %>%
+  ungroup()
 ```
 ```{r babynames2}
 baby_names <- bind_rows(baby_names, babynames_other)
@@ -163,7 +174,7 @@ p_name_age <- baby_names %>%
   mutate(age = YEAR - year)
 ```
 
-```{r plot_name_age,fig.caption=glue("Proportion of babies in year with name of {name} and sex {sex}."}
+```{r plot_name_age}
 ggplot(p_name_age, aes(x = year, y = prop)) +
   geom_line() +
   labs(x = "", y = "Proportion births")
@@ -209,32 +220,57 @@ $$
 
 ```{r}
 baby_names_joint <- baby_names %>%
-  # add probability alive
+  # add probability that the person is alive
   left_join(select(age_distr, age, sex, birthyear, p_alive), 
             by = c("sex", year = "birthyear")) %>%
-  # update probabilities, 
-  mutate(prop = p_alive * prop,
-         prop = if_else(is.na(prop), 0, prop),
-         n = n * p_alive) %>%
-  select(-n_alive, -p_alive) %>%
+  # calculate number alive
+  filter(year >= 1900) %>%
+  mutate(n_alive = p_alive * n) %>%
+  # calculate p(sex, age, name)
+  # number alive with sex, age, name / total estimated to be alive
+  mutate(prop = n_alive / sum(n_alive))
 ```
 
+Calculate $p(name, sex)$ by summing the probabilities of all
+combinations of age and sex.
 ```{r}
-baby_names_joint %>% 
-  group_by()
+p_name_sex <- baby_names_joint %>%
+  group_by(name, sex) %>%
+  summarise(prop = sum(prop))
 ```
-
+Calculate,
+$$
+p(age | name, sex) = \frac{p(age, name, sex)}{p(name, sex)}
+$$
+```{r}
+inner_join(baby_names_joint, 
+           select(p_name_sex, name, sex, p_name_sex = prop),
+           by = c("name", "sex")) %>%
+  mutate(p_age = prop / p_name_sex)
+  
+  
+```
 
 
 ### Questions
 
 1. Which name provides the most information about a person's age? Which provides the least?
-1. Consider a rare name - what is the probability on days in years in which there is no sample. How does that affect the analysis?
-      What would you do about it?
-2. How would you calculate p(age | name) if you don't know the sex?
+1. Consider a rare name - what is the probability in years in which there is no sample. How does that affect the analysis? What would you do about it?
+
+```{r}
+filter(baby_names, sex == "M") %>% 
+  count(name) %>% 
+  filter(nn == 1) %>% 
+  sample_n(1)
+```
+  
+
+2. How would you calculate $p(age | name)$ if you don't know the sex of the individual?
 
 
 ### References
 
-The [How to Tell Someone’s Age When All You Know Is Her Name](https://fivethirtyeight.com/features/how-to-tell-someones-age-when-all-you-know-is-her-name/) is 
+- The [How to Tell Someone’s Age When All You Know Is Her Name](https://fivethirtyeight.com/features/how-to-tell-someones-age-when-all-you-know-is-her-name/) is 
+- [gender](https://github.com/ropensci/gender): R package for predicting gender from a name.
+- [wru](https://github.com/kosukeimai/wru): R package to predict race/ethnicity from surnames and geolocation information, based on [this paper](http://imai.princeton.edu/research/race.html)
 
