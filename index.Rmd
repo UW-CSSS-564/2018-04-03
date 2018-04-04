@@ -2,7 +2,7 @@
 title: "Predict your age from you name"
 author: "Jeffrey B. Arnold"
 date: 2018-04-03
-output: pdf_document
+output: html_document
 editor_options: 
   chunk_output_type: console
 ---
